@@ -1,0 +1,92 @@
+=============================
+=      File description     =
+=============================
+
+    README -                        This file.
+
+main package:
+
+    Sjavac.java -                   This class represents an s-java verifier and contains the main method.
+
+parser package:
+
+    Parser.java -                   This class represents a parser which parses an s-java file.
+    CodeLine.java -                 This class represents a code line in an s-java file.
+    ParserSyntaxException.java -    This class signals that a parser has found a syntax error in an s-java
+                                    file.
+    ParserIOException.java -        This class signals that a parser has found an IO exception while
+                                    parsing an s-java file.
+
+executor package:
+
+    Executor.java -                 This class represents an executor which executes the commands of an
+                                    s-java file.
+    ExecutorException.java -        This abstract class signals that an executor has encountered a logical
+                                    error while executing its commands.
+scopes package:
+
+    Scope.java -                    This abstract class represents a scope inside an s-java file.
+    GlobalScope.java -              This class extends Scope and represents a global scope inside an s-java
+                                    file.
+    MethodScope.java -              This class extends Scope and represents a method scope inside an s-java
+                                    file.
+    ScopeException.java -           This class extends ExecutorException and signals that a scope has
+                                    received an illegal command.
+
+members package:
+
+    Parameter.java -                This class represents a parameter in an s-java file.
+    Value.java -                    This class represents a value in an s-java file
+    Variable.java -                 This class represents a variable in an s-java file.
+    VariableException.java -        This class extends ExecutorException and signals that a variable has
+                                    received an illegal command.
+
+=============================
+=          Design           =
+=============================
+
+The task of verifying the s-java file is split into two main parts: 1. parsing & 2. executing.
+
+Parsing is performed by the parser, which is in charge of deciphering the s-java file and converting
+it into code a computer can read and execute. This class is in charge of recognizing syntax errors, and
+is the only class that works with regular expressions.
+Its only public method is getCommands() which:
+1.  converts the lines in the s-java file to code lines.
+    Code lines are represented by a CodeLine object which contains 1. toIntFunction<Executor> - a command
+    which executor carries out - & 2. lineNumber - the line number of the command is the s-java file,
+    which is used when printing error messages.
+2.  arranges these code lines so that code lines which appear in the global scope are reached before
+    code lines which exist in the local scope. In this way, when the executor carries out commands in a
+    local scope, all the global scope variables and methods have been declared and assigned.
+If the parser encounters a syntax or IO exception while carrying out getCommands() it passes it on to
+the main method.
+
+Executing is performed by the executor, which receives the rearranged code lines from the parser via main.
+The executor is in charge of recognizing logical errors, such as referring to a variable that doesn't exist
+or calling on a method with the wrong parameters. It need to 'remember' data members defined in the
+s-java code.
+To do this it uses scopes: the executor holds a single scope and for the most part delegates the commands
+it receives to this scope. (the scope's public methods correspond to the commands the executor receives).
+The executor can also switch its current scope with another (the current scope's child or parent), whenever
+a scope is opened or closed.
+The executor catches logical exceptions - i.e. scope and variable exceptions - that are thrown to it
+from scopes, so it does not pass them on to the main method. To catch both scope and variable exceptions
+without having to specify which, both implement the abstract class ExecutorException.
+The executor's main method is execute() which returns: 0 - if at no point did any 'command' method catch an
+exception; 1 - the moment one does.
+
+Scope is an abstract class with 3 implementations: global, method & if/while. A scope has variables which
+belong to it, and can access its parent scope, and their variables as well.
+Scopes implement public methods corresponding to the executor's 'command' methods, which throw scope
+exceptions if carrying them out causes a logical error. They also implement protected methods
+which allow the different scope implementations to interact.
+A global scope can only have a method scope as a child; a method scope can only have an if/while scope
+as a child; and an if/while scope can only have another if/while scope as a child. This is implemented
+using the implementation of the scopes' public methods.
+
+The variables which belong to a scope are Variable objects. which hold data and throw variable exceptions
+when scopes try to modify or construct them illegally.
+Variable also implement an enum class called Type which represents a variable type. A type has a single
+method - accept() - which returns true if a given variable type can be assigned to it.
+The two objects in members are value and parameter, which serve to carry information from the parser to code
+lines and from the code lines to executor. They do not throw exceptions.
